@@ -76,9 +76,9 @@ func (p *Scanner) Start() {
 			fmt.Printf("%d\t%s\t%s\t%s\n", n.Port, n.State, n.Service, n.Protocol)
 		}
 	}
-    color.Set(color.FgHiGreen)
-    fmt.Println("\nTook", time.Since(dt), "to complete")
-    color.Unset()
+	color.Set(color.FgHiGreen)
+	fmt.Println("\nTook", time.Since(dt), "to complete")
+	color.Unset()
 }
 
 func displayAbout() {
@@ -96,12 +96,12 @@ func displayAbout() {
 func main() {
 	var host, protocol string
 	var about bool
-    flag.StringVar(&protocol, "proto", "tcp", "Protcol to use, values: tcp/udp")
+	flag.StringVar(&protocol, "proto", "tcp", "Protcol to use, values: tcp/udp")
 	flag.StringVar(&host, "host", "localhost", "Hostname")
 	flag.BoolVar(&about, "about", false, "About pscan")
 	flag.Parse()
 	if (protocol != "tcp" && protocol != "udp") || flag.Arg(0) != "" {
-        flag.Usage()
+		flag.Usage()
 		os.Exit(1)
 	}
 	if about {
