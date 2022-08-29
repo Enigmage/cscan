@@ -3,15 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/fatih/color"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/fatih/color"
 )
 
 type Result struct {
-	Port     int
+	Port     int64
 	State    string
 	Protocol string
 	Service  string
@@ -20,10 +23,15 @@ type Result struct {
 type Scanner struct {
 	Host     string
 	Protocol string
+	r        Range
 }
 
-func getCommonPortServices() map[int]string {
-	ret := map[int]string{
+type Range struct {
+	start, end int64
+}
+
+func getCommonPortServices() map[int64]string {
+	ret := map[int64]string{
 		20:  "ftp",
 		21:  "ftp",
 		22:  "ssh",
@@ -37,12 +45,26 @@ func getCommonPortServices() map[int]string {
 	return ret
 }
 
-func scan(protocol, host string, openPorts chan<- Result) {
-	var wg sync.WaitGroup
+func min(a, b int64) int64 {
+	if a <= b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int64) int64 {
+	if a >= b {
+		return a
+	}
+	return b
+}
+
+func scan(protocol, host string, openPorts chan<- Result, r Range) {
+	wg := sync.WaitGroup{}
 	portMap := getCommonPortServices()
-	for i := 1; i <= 65_535; i++ {
+	for i := r.start; i <= r.end; i++ {
 		wg.Add(1)
-		go func(port int) {
+		go func(port int64) {
 			defer wg.Done()
 			address := fmt.Sprintf("%s:%d", host, port)
 			timeout := time.Second * 60
@@ -68,9 +90,10 @@ func (p *Scanner) Start() {
 	dt := time.Now()
 	color.Set(color.FgHiGreen)
 	fmt.Printf("Starting scan at %s\nHost: %s\n", dt.Format(time.UnixDate), p.Host)
+	fmt.Printf("Scanning from port %v to %v\n", p.r.start, p.r.end)
 	fmt.Println("Port\tState\tService\tProtocol")
 	color.Unset()
-	go scan(p.Protocol, p.Host, openPorts)
+	go scan(p.Protocol, p.Host, openPorts, p.r)
 	for n := range openPorts {
 		if n.State == "open" {
 			fmt.Printf("%d\t%s\t%s\t%s\n", n.Port, n.State, n.Service, n.Protocol)
@@ -94,10 +117,11 @@ func displayAbout() {
 }
 
 func main() {
-	var host, protocol string
+	var host, protocol, inputRange string
 	var about bool
 	flag.StringVar(&protocol, "proto", "tcp", "Protcol to use, values: tcp/udp")
 	flag.StringVar(&host, "host", "localhost", "Hostname")
+	flag.StringVar(&inputRange, "port", "1-65535", "Provide the port or range of ports to scan")
 	flag.BoolVar(&about, "about", false, "About pscan")
 	flag.Parse()
 	if (protocol != "tcp" && protocol != "udp") || flag.Arg(0) != "" {
@@ -108,9 +132,31 @@ func main() {
 		displayAbout()
 		os.Exit(0)
 	}
+
+	r := Range{}
+	sp := strings.Split(inputRange, "-")
+	f, err := strconv.ParseInt(sp[0], 10, 64)
+	if err != nil {
+		color.Red("Error: bad range provided!")
+		os.Exit(1)
+	}
+	s, err := f, nil
+	if len(sp) == 2 {
+		s, err = strconv.ParseInt(sp[1], 10, 64)
+		if err != nil {
+			color.Red("Error: bad range provided!")
+			os.Exit(1)
+		}
+	} else if len(sp) > 2 {
+		color.Red("Error: bad range provided!")
+		os.Exit(1)
+	}
+	r.start = min(f, s)
+	r.end = max(f, s)
 	ps := &Scanner{
 		Host:     host,
 		Protocol: protocol,
+		r:        r,
 	}
 	ps.Start()
 }
