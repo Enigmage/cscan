@@ -21,9 +21,9 @@ type Result struct {
 }
 
 type Scanner struct {
-	Host     string
-	Protocol string
-	r        Range
+	Host      string
+	Protocol  string
+	portRange Range
 }
 
 type Range struct {
@@ -90,10 +90,10 @@ func (p *Scanner) Start() {
 	dt := time.Now()
 	color.Set(color.FgHiGreen)
 	fmt.Printf("Starting scan at %s\nHost: %s\n", dt.Format(time.UnixDate), p.Host)
-	fmt.Printf("Scanning from port %v to %v\n", p.r.start, p.r.end)
+	fmt.Printf("Scanning from port %v to %v\n", p.portRange.start, p.portRange.end)
 	fmt.Println("Port\tState\tService\tProtocol")
 	color.Unset()
-	go scan(p.Protocol, p.Host, openPorts, p.r)
+	go scan(p.Protocol, p.Host, openPorts, p.portRange)
 	for n := range openPorts {
 		if n.State == "open" {
 			fmt.Printf("%d\t%s\t%s\t%s\n", n.Port, n.State, n.Service, n.Protocol)
@@ -154,9 +154,9 @@ func main() {
 	r.start = min(f, s)
 	r.end = max(f, s)
 	ps := &Scanner{
-		Host:     host,
-		Protocol: protocol,
-		r:        r,
+		Host:      host,
+		Protocol:  protocol,
+		portRange: r,
 	}
 	ps.Start()
 }
