@@ -24,6 +24,7 @@ type Scanner struct {
 	Host      string
 	Protocol  string
 	portRange Range
+	Timeout   time.Duration
 }
 
 type Range struct {
@@ -45,21 +46,7 @@ func getCommonPortServices() map[int64]string {
 	return ret
 }
 
-func min(a, b int64) int64 {
-	if a <= b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int64) int64 {
-	if a >= b {
-		return a
-	}
-	return b
-}
-
-func scan(protocol, host string, openPorts chan<- Result, r Range) {
+func scan(protocol, host string, openPorts chan<- Result, r Range, timeout time.Duration) {
 	wg := sync.WaitGroup{}
 	portMap := getCommonPortServices()
 	for i := r.start; i <= r.end; i++ {
@@ -67,7 +54,6 @@ func scan(protocol, host string, openPorts chan<- Result, r Range) {
 		go func(port int64) {
 			defer wg.Done()
 			address := fmt.Sprintf("%s:%d", host, port)
-			timeout := time.Second * 60
 			conn, err := net.DialTimeout(protocol, address, timeout)
 			if err != nil {
 				openPorts <- Result{port, "closed", protocol, "-"}
@@ -93,7 +79,7 @@ func (p *Scanner) Start() {
 	fmt.Printf("Scanning from port %v to %v\n", p.portRange.start, p.portRange.end)
 	fmt.Println("Port\tState\tService\tProtocol")
 	color.Unset()
-	go scan(p.Protocol, p.Host, openPorts, p.portRange)
+	go scan(p.Protocol, p.Host, openPorts, p.portRange, p.Timeout)
 	for n := range openPorts {
 		if n.State == "open" {
 			fmt.Printf("%d\t%s\t%s\t%s\n", n.Port, n.State, n.Service, n.Protocol)
@@ -119,9 +105,11 @@ func displayAbout() {
 func main() {
 	var host, protocol, inputRange string
 	var about bool
+	var timeout time.Duration
 	flag.StringVar(&protocol, "proto", "tcp", "Protcol to use, values: tcp/udp")
 	flag.StringVar(&host, "host", "localhost", "Hostname")
 	flag.StringVar(&inputRange, "port", "1-65535", "Provide the port or range of ports to scan")
+	flag.DurationVar(&timeout, "timeout", time.Second*60, "Request timeout duration in seconds")
 	flag.BoolVar(&about, "about", false, "About pscan")
 	flag.Parse()
 	if (protocol != "tcp" && protocol != "udp") || flag.Arg(0) != "" {
@@ -151,12 +139,26 @@ func main() {
 		color.Red("Error: bad range provided!")
 		os.Exit(1)
 	}
-	r.start = min(f, s)
-	r.end = max(f, s)
+
+	r.start = func(a, b int64) int64 {
+		if a <= b {
+			return a
+		}
+		return b
+	}(f, s)
+
+	r.end = func(a, b int64) int64 {
+		if a >= b {
+			return a
+		}
+		return b
+	}(f, s)
+
 	ps := &Scanner{
 		Host:      host,
 		Protocol:  protocol,
 		portRange: r,
+		Timeout:   timeout,
 	}
 	ps.Start()
 }
