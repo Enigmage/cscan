@@ -90,35 +90,17 @@ func (p *Scanner) Start() {
 	color.Unset()
 }
 
-func displayAbout() {
-	color.Set(color.FgHiYellow)
-	fmt.Println("pscan: a simple and concurrent full connection type tcp/udp port scanner.")
-	fmt.Println()
-	fmt.Println("Usage:")
-	fmt.Println("\tpscan --host <hostname> --proto <protocol>")
-	fmt.Println()
-	fmt.Println("hostname: name of the target host. Default value: localhost")
-	fmt.Println("protocol: can be tcp or udp. Default value: tcp")
-	color.Unset()
-}
-
 func main() {
 	var host, protocol, inputRange string
-	var about bool
 	var timeout time.Duration
 	flag.StringVar(&protocol, "proto", "tcp", "Protcol to use, values: tcp/udp")
 	flag.StringVar(&host, "host", "localhost", "Hostname")
 	flag.StringVar(&inputRange, "port", "1-65535", "Provide the port or range of ports to scan")
 	flag.DurationVar(&timeout, "timeout", time.Second*60, "Request timeout duration in seconds")
-	flag.BoolVar(&about, "about", false, "About pscan")
 	flag.Parse()
 	if (protocol != "tcp" && protocol != "udp") || flag.Arg(0) != "" {
 		flag.Usage()
 		os.Exit(1)
-	}
-	if about {
-		displayAbout()
-		os.Exit(0)
 	}
 
 	r := Range{}
