@@ -1,7 +1,10 @@
 #!/usr/bin/env sh
 
-env GOOS=linux GOARCH=amd64 go build . 
+env GOOS=linux GOARCH=amd64 go build . &&
 env GOOS=windows GOARCH=amd64 go build .
 
-
-mv cscan cscan.exe bin/
+if [ $? -eq 0 ] then
+    mv cscan cscan.exe bin/
+else
+    echo "Error in build!"
+fi
