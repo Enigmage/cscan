@@ -46,17 +46,17 @@ func getCommonPortServices() map[int64]string {
 	return ret
 }
 
-func scan(protocol, host string, openPorts chan<- Result, r Range, timeout time.Duration) {
+func (p *Scanner) Scan(openPorts chan<- Result) {
 	wg := sync.WaitGroup{}
 	portMap := getCommonPortServices()
-	for i := r.start; i <= r.end; i++ {
+	for i := p.portRange.start; i <= p.portRange.end; i++ {
 		wg.Add(1)
 		go func(port int64) {
 			defer wg.Done()
-			address := fmt.Sprintf("%s:%d", host, port)
-			conn, err := net.DialTimeout(protocol, address, timeout)
+			address := fmt.Sprintf("%s:%d", p.Host, port)
+			conn, err := net.DialTimeout(p.Protocol, address, p.Timeout)
 			if err != nil {
-				openPorts <- Result{port, "closed", protocol, "-"}
+				openPorts <- Result{port, "closed", p.Protocol, "-"}
 				return
 			}
 			conn.Close()
@@ -64,22 +64,22 @@ func scan(protocol, host string, openPorts chan<- Result, r Range, timeout time.
 			if !ok {
 				service = "-"
 			}
-			openPorts <- Result{port, "open", protocol, service}
+			openPorts <- Result{port, "open", p.Protocol, service}
 		}(i)
 	}
 	wg.Wait()
 	defer close(openPorts)
 }
 
-func (p *Scanner) Start() {
+func (ps *Scanner) Start() {
 	openPorts := make(chan Result)
 	dt := time.Now()
 	color.Set(color.FgHiGreen)
-	fmt.Printf("Starting scan at %s\nHost: %s\n", dt.Format(time.UnixDate), p.Host)
-	fmt.Printf("Scanning from port %v to %v\n", p.portRange.start, p.portRange.end)
+	fmt.Printf("Starting scan at %s\nHost: %s\n", dt.Format(time.UnixDate), ps.Host)
+	fmt.Printf("Scanning from port %v to %v\n", ps.portRange.start, ps.portRange.end)
 	fmt.Println("Port\tState\tService\tProtocol")
 	color.Unset()
-	go scan(p.Protocol, p.Host, openPorts, p.portRange, p.Timeout)
+	go ps.Scan(openPorts)
 	for n := range openPorts {
 		if n.State == "open" {
 			fmt.Printf("%d\t%s\t%s\t%s\n", n.Port, n.State, n.Service, n.Protocol)
