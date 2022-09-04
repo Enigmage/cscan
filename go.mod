@@ -1,4 +1,4 @@
-module cscan
+module github.com/Enigmage/cscan
 
 go 1.19
 
